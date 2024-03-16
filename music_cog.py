@@ -9,6 +9,7 @@ import os
 import datetime
 from youtube_dl import YoutubeDL
 import random
+from music_messages import leave_message, join_message
 
 async def setup(bot):
     await bot.add_cog(music_cog(bot))
@@ -94,15 +95,6 @@ class music_cog(commands.Cog):
                 self.queueIndex[id] = 0
                 await self.vc[id].disconnect()
 
-    @commands.Cog.listener()
-    async def on_message(self, message):
-        with open('token.txt', 'r') as file:
-            userID = int(file.readlines()[1])
-        if '#poop' in message.content and message.author.id == userID:
-            await message.channel.send("I gotcha fam ;)")
-            ctx = await self.bot.get_context(message)
-            await self.play(ctx, "https://youtu.be/AkJYdRGu14Y")
-        os.chdir(self.cwd)
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
@@ -140,7 +132,7 @@ class music_cog(commands.Cog):
 
         if type == 2:
             songAdded = discord.Embed(
-                title="coloquei na fila",
+                title="na fila",
                 description=f'[{TITLE}]({LINK})',
                 colour=self.embedRed
             )
@@ -172,20 +164,19 @@ class music_cog(commands.Cog):
             return songRemoved
 
     async def join_VC(self, ctx, channel):
-        messages_list = ["ERROR 42069: TOO MUCH BOIOLAGEM FOR MY LINKING", "cheguei porra", "\"Um homem de pau duro é uma fera que caminha\" - Hermes e Renato.",
-        "vc foi no passeio?", "com calma e jeito chega-se ao cu de qualquer sujeito", "passou de dois já é suruba", "vc conhece a kelly?"]
         roll = random.randint(0, 6)
         
         id = int(ctx.guild.id)
         if self.vc[id] == None or not self.vc[id].is_connected():
             self.vc[id] = await channel.connect()
+            await ctx.send('cheguei porra')
 
             if self.vc[id] == None:
                 await ctx.send("tu tem q entrar em algum channel primeiro")
                 return
         else:
             await self.vc[id].move_to(channel)
-            await ctx.send(f"{messages_list[roll]}")
+            await ctx.send(f"{join_message[roll]}")
 
     def get_YT_title(self, VideoID):
         params = {"format": "json",
@@ -250,22 +241,19 @@ class music_cog(commands.Cog):
             self.is_playing[id] = False
 
     async def play_music(self, ctx):
-        messages_list = ["ERROR 42069: TOO MUCH BOIOLAGEM FOR MY LINKING", "cheguei porra", "\"Um homem de pau duro é uma fera que caminha\" - Hermes e Renato.",
-        "vc foi no passeio?", "com calma e jeito chega-se ao cu de qualquer sujeito", "passou de dois já é suruba", "vc conhece a kelly?"]
-        roll = random.randint(0, 6)
-
+        roll = random.randint(0, (len(join_message) - 1))
         id = int(ctx.guild.id)
         if self.queueIndex[id] < len(self.musicQueue[id]):
             self.is_playing[id] = True
             self.is_paused[id] = False
 
-
-            await self.join_VC(ctx, self.musicQueue[id][self.queueIndex[id]][1])
-            await ctx.send(f'{messages_list[roll]}')
+            if self.vc[id] == None:
+                await self.join_VC(ctx, self.musicQueue[id][self.queueIndex[id]][1])
 
             song = self.musicQueue[id][self.queueIndex[id]][0]
             message = self.generate_embed(ctx, song, 1)
             await ctx.send(embed=message)
+            await ctx.send(join_message[roll])
 
             self.vc[id].play(discord.FFmpegPCMAudio(
                 song['source'], **self.FFMPEG_OPTIONS), after=lambda e: self.play_next(ctx))
@@ -277,19 +265,18 @@ class music_cog(commands.Cog):
     # Play Command
 
     @ commands.command(
-        name="play",
-        aliases=["p"],
+        name="p",
+        aliases=["play"],
         help="""
-            (url || search terms)
-            Plays (or resumes) the audio of a specified YouTube video
-            Takes either a url or search terms for a YouTube video and starts playing the first result. If no arguments are specified then the current audio is resumed.
+            (url || nome da música)
+            Toca música do youtube.
             """
     )
     async def play(self, ctx, *args):
         search = " ".join(args)
         id = int(ctx.guild.id)
         try:
-            userChannel = ctx.author.voice.channel
+            userChannel = ctx.author.voice.channel               
         except:
             await ctx.send("tu tem q tar em algum channel meu mano")
             return
@@ -328,15 +315,13 @@ class music_cog(commands.Cog):
                 else:
                     message = self.generate_embed(ctx, song, 2)
                     await ctx.send(embed=message)
-            await ctx.delete()
 
     @ commands.command(
-        name="play --add",
-        aliases=["pa"],
+        name="pa",
+        aliases=["p-add"],
         help="""
-            [url || search terms]
-            Adds the first search result to the queue
-            Adds the first YouTube search result for a url or specified search terms to the queue.
+            [url || busca]
+            Coloca o primeiro resultado do youtube na fila.
             """
     )
     async def add(self, ctx, *args):
@@ -358,17 +343,15 @@ class music_cog(commands.Cog):
                 self.musicQueue[ctx.guild.id].append([song, userChannel])
                 message = self.generate_embed(ctx, song, 2)
                 await ctx.send(embed=message)
-        await ctx.delete()
 
     # AddNext Command
 
     @ commands.command(
-        name="addnext",
-        aliases=["pn"],
+        name="pn",
+        aliases=["addnext"],
         help="""
-            [url || search terms]
-            Inserts the first search result next in the queue
-            Inserts the first YouTube search result for a url or specified search terms next in the queue.
+            [url || nome da música]
+            Coloca o primeiro resultado da busca na fila.
             """
     )
     async def addNext(self, ctx, *args):
@@ -394,12 +377,11 @@ class music_cog(commands.Cog):
     # Remove Command
 
     @ commands.command(
-        name="remove",
-        aliases=["rm"],
+        name="rm",
+        aliases=["remove"],
         help="""
             <>
-            Removes the last song in the queue
-            Removes the last song in the queue.
+            Remove a última música da lista.
             """
     )
     async def remove(self, ctx):
@@ -426,12 +408,11 @@ class music_cog(commands.Cog):
     # Pause Command
 
     @ commands.command(
-        name="pause",
-        aliases=["s"],
+        name="s",
+        aliases=["pause"],
         help="""
             <>
-            Pauses the current song being played
-            Pauses the current song being played.
+            Pausa a música.
             """,
     )
     async def pause(self, ctx):
@@ -443,16 +424,14 @@ class music_cog(commands.Cog):
             self.is_playing[id] = False
             self.is_paused[id] = True
             self.vc[id].pause()
-        await ctx.delete()
     # Resume Command
 
     @ commands.command(
-        name="resume",
-        aliases=["u"],
+        name="u",
+        aliases=["resume"],
         help="""
             <>
-            Resumes a paused song
-            Resumes a paused song
+            Despausa a música.
             """,
     )
     async def resume(self, ctx):
@@ -464,17 +443,15 @@ class music_cog(commands.Cog):
             self.is_playing[id] = True
             self.is_paused[id] = False
             self.vc[id].resume()
-        await ctx.delete()
 
     # Skip Command
 
     @ commands.command(
-        name="previous",
-        aliases=["pr"],
+        name="pr",
+        aliases=["previous"],
         help="""
             <>
-            Plays the previous song in the queue
-            Plays the previous song in the queue. If there is no previous song then nothing happens.
+            Toca a mesma música que acabou de tocar.
             """,
     )
     async def previous(self, ctx):
@@ -489,17 +466,15 @@ class music_cog(commands.Cog):
             self.vc[id].pause()
             self.queueIndex[id] -= 1
             await self.play_music(ctx)
-        await ctx.delete()
 
     # Skip Command
 
     @ commands.command(
-        name="skip",
-        aliases=["k"],
+        name="k",
+        aliases=["skip"],
         help="""
             <>
-            Skips to the next song in the queue.
-            Skips to the next song in the queue. If there is no following song then nothing happens.
+            Pula pra próxima música da fila. Se não tiver nenhuma, vai tocar a mesma música.
             """,
     )
     async def skip(self, ctx):
@@ -514,17 +489,15 @@ class music_cog(commands.Cog):
             self.vc[id].pause()
             self.queueIndex[id] += 1
             await self.play_music(ctx)
-        await ctx.delete()
 
     # List Queue Command
 
     @ commands.command(
-        name="queue",
-        aliases=["ls"],
+        name="ls",
+        aliases=["queue"],
         help="""
             <>
-            Lists the next few songs in the queue.
-            Lists the song that is currently playing and the next few songs in the queue. Up to five songs can be listed depending on how many are in the queue.
+            Lista as músicas que tão na fila.
             """,
     )
     async def queue(self, ctx):
@@ -560,17 +533,15 @@ class music_cog(commands.Cog):
             colour=self.embedGreen
         )
         await ctx.send(embed=queue)
-        await ctx.delete()
 
     # Clear Queue Command
 
     @ commands.command(
-        name="clear",
-        aliases=["rf"],
+        name="rls",
+        aliases=["clear"],
         help="""
             <>
-            Clears all of the songs from the queue
-            Stops the current audio from playing and clears all of the songs from the queue.
+            Remove todas as músicas da fila.
             """,
     )
     async def clear(self, ctx):
@@ -583,42 +554,36 @@ class music_cog(commands.Cog):
             await ctx.send("limpei a lista")
             self.musicQueue[id] = []
         self.queueIndex[id] = 0
-        await ctx.delete()
 
     # Join VC Command
 
     @ commands.command(
-        name="join",
-        aliases=["j"],
+        name="j",
+        aliases=["join"],
         help="""
             <>
-            Connects the bot to the voice channel
-            Connects the bot to the voice channel of whoever called the command. If you are not in a voice channel then nothing will happen.
+            Conecta ao canal de voz.
             """,
     )
     async def join(self, ctx):
         if ctx.author.voice:
             userChannel = ctx.author.voice.channel
             await self.join_VC(ctx, userChannel)
-            await ctx.send(f"{self.names[ctx.guild.id]} has joined {userChannel}!")
+            await ctx.send(f"{self.names[ctx.guild.id]} entrou {userChannel}!")
         else:
             await ctx.send("tu n tá em channel nenhum fio")
-        await ctx.delete()
 
     # Leave VC Command
 
     @ commands.command(
-        name="leave",
-        aliases=["x"],
+        name="x",
+        aliases=["leave"],
         help="""
             <>
-            Removes the bot from the voice channel and clears the queue
-            Removes the bot from the voice channel and clears all of the songs from the queue.
+            Tira o bot do canal e limpa a fila.
             """,
     )
     async def leave(self, ctx):
-        message_list = ["tô vazando", "\"O meu pau é maior, I\'m sorry\" - Apple, Jupyter.", "coach e psicólogo é a mesma coisa", "pino de pipicles",
-        "cuzin com limão", "n fico em channel com autista", "vamo usar droga"]
         roll = random.randint(0, 6)
 
         id = int(ctx.guild.id)
@@ -627,6 +592,6 @@ class music_cog(commands.Cog):
         self.musicQueue[id] = []
         self.queueIndex[id] = 0
         if self.vc[id] != None:
-            await ctx.send(f'{message_list[roll]}')
+            await ctx.send(f'{leave_message[roll]}')
             await self.vc[id].disconnect()
-        await ctx.delete()
+            self.vc[id] = None
