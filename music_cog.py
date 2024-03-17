@@ -27,6 +27,7 @@ class music_cog(commands.Cog):
         self.is_paused = {}
         self.musicQueue = {}
         self.queueIndex = {}
+        self.sound_playing = {}
 
         self.YTDL_OPTIONS = {
             'format': 'bestaudio/best',
@@ -87,6 +88,7 @@ class music_cog(commands.Cog):
                     self.musicQueue[id] = []
                     self.queueIndex[id] = 0
                     await self.vc[id].disconnect()
+                    self.vc[id] = None
                 if self.vc[id] == None or not self.vc[id].is_connected():
                     break
         # if the trigger is a user (not the bot) and the action was leaving a channel
@@ -247,6 +249,7 @@ class music_cog(commands.Cog):
     async def play_music(self, ctx):
         roll = random.randint(0, (len(join_message) - 1))
         id = int(ctx.guild.id)
+
         if self.queueIndex[id] < len(self.musicQueue[id]):
             self.is_playing[id] = True
             self.is_paused[id] = False
@@ -341,10 +344,40 @@ class music_cog(commands.Cog):
                 return
 
             if link.startswith('https://www.youtube.com/watch?v='):
-                self.sounds[f'{name}'] = f'{link}'
-                await ctx.send('som adicionado')
+                searchResults = self.search_YT(link)
+                
+                for i in range(10):
+                    added_sound = self.extract_YT(searchResults[i])
+                    
+                    if not ("shopify" in str(added_sound['title']).lower()):
+                        break
+            
+                if type(added_sound) == type(True):
+                    await ctx.send("tu digitou o nome da música meio cagado aí")
+                    return
+                else:
+                    self.sounds[f'{name}'] = added_sound
+                    await ctx.send('som adicionado')
             else:
                 await ctx.send('isso não é um link de youtube válido, digita -man add pra ver como tem que ser o link')
+
+    @ commands.command(
+        name="rms",
+        aliases=["removesound"],
+        help="""
+            [nome]
+            Remove um som do bot
+            """
+    )
+    async def remove_sound(self, ctx, *args):
+        if not args:
+            await ctx.send('tem que passar o argumento pra essa função')
+        else:
+            if args[0] in self.sounds:
+                del self.sounds[f'{args[0]}']
+                await ctx.send('som removido')
+            else:
+                await ctx.send('esse som não tá na lista')
 
     @ commands.command(
         name="sl",
@@ -368,6 +401,58 @@ class music_cog(commands.Cog):
             
             await ctx.send(embed=sl_embed)
                 
+
+    @ commands.command(
+        name="debug",
+        aliases=["dbg"],
+        help="""
+            [nome]
+            Um comando de debug, tá aqui temporariamente.
+            """
+    )
+ 
+    async def debugger(self, ctx):
+        await ctx.send(f'Status da classe: \n {self.is_playing}, \n {self.is_paused}, \n {self.musicQueue}, \n {self.queueIndex}, \n {self.vc}, \n {self.sound_playing}')
+    
+    @ commands.command(
+        name="ps",
+        aliases=["playsound"],
+        help="""
+            [nome]
+            Toca um som do bot
+            """
+    )
+    
+    async def play_sound(self, ctx: str, *args: str) -> None:
+        id = int(ctx.guild.id)
+        if not args:
+            await ctx.send('tem que passar o nome do som')
+        else:
+            if args[0] in self.sounds:
+                search = self.sounds[f'{args[0]}']
+                sound = search['source']
+                
+                try:
+                    userChannel = ctx.author.voice.channel               
+                except:
+                    await ctx.send("tu tem q tar em algum channel")
+                    return
+
+                if self.vc[id] == None:
+                    await self.join_VC(ctx, userChannel)
+                    
+                if not self.is_playing[id]:
+                    self.vc[id].play(discord.FFmpegPCMAudio(
+                        sound, **self.FFMPEG_OPTIONS), after=lambda e: self.play_next(ctx))
+                else:
+                    await ctx.send('já tem música tocando, não dá pra tocar um som por cima')
+                    return
+            else:
+                await ctx.send('não tem esse som')
+                await ctx.send(args[0])
+                return
+    
+
 
     @ commands.command(
         name="pa",
