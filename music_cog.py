@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import discord
 from discord.ext import commands
 import asyncio
@@ -47,6 +49,8 @@ class music_cog(commands.Cog):
         self.embedDarkPink = 0x7d3243
 
         self.vc = {}
+
+        self.sounds = {}
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -262,6 +266,7 @@ class music_cog(commands.Cog):
             self.queueIndex[id] += 1
             self.is_playing[id] = False
 
+
     # Play Command
 
     @ commands.command(
@@ -315,6 +320,54 @@ class music_cog(commands.Cog):
                 else:
                     message = self.generate_embed(ctx, song, 2)
                     await ctx.send(embed=message)
+
+    @ commands.command(
+        name="add",
+        aliases=["newsound"],
+        help="""
+            [nome , link]
+            Adiciona um novo som ao bot
+            """
+    )
+    async def new_sound(self, ctx, *args):
+        if not args:
+            await ctx.send('tem que passar o argumento pra essa função')
+        else:
+            try:
+                name = args[0]
+                link = args[1]
+            except:
+                await ctx.send('tá faltando o nome ou o link')
+                return
+
+            if link.startswith('https://www.youtube.com/watch?v='):
+                self.sounds[f'{name}'] = f'{link}'
+                await ctx.send('som adicionado')
+            else:
+                await ctx.send('isso não é um link de youtube válido, digita -man add pra ver como tem que ser o link')
+
+    @ commands.command(
+        name="sl",
+        aliases=["soundlist"],
+        help="""
+            <>
+            Lista os sons do bot
+            """
+    )
+    async def sound_list(self, ctx):
+        sl_embed = discord.Embed(
+            title='Lista de sons disponíveis:',
+            description='digite -y <nome do som> pra tocar o som',
+            colour=self.embedBlue
+        )
+        if not self.sounds:
+            await ctx.send('a lista tá vazia')
+        else:
+            for key in self.sounds.keys():
+                sl_embed.add_field(name=f'{key}', value='', inline=False)
+            
+            await ctx.send(embed=sl_embed)
+                
 
     @ commands.command(
         name="pa",
