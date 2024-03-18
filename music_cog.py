@@ -12,6 +12,7 @@ import datetime
 from youtube_dl import YoutubeDL
 import random
 from music_messages import leave_message, join_message
+import aiofiles as aiof
 
 async def setup(bot):
     await bot.add_cog(music_cog(bot))
@@ -28,6 +29,8 @@ class music_cog(commands.Cog):
         self.musicQueue = {}
         self.queueIndex = {}
         self.sound_playing = {}
+        self.sound_queue = {}
+        self.sound_queue_index = {}
 
         self.YTDL_OPTIONS = {
             'format': 'bestaudio/best',
@@ -51,7 +54,8 @@ class music_cog(commands.Cog):
 
         self.vc = {}
 
-        self.sounds = {}
+        with open('soundsource.json', 'r') as file:
+            self.sounds = json.load(file)
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -100,6 +104,7 @@ class music_cog(commands.Cog):
                 self.musicQueue[id] = []
                 self.queueIndex[id] = 0
                 await self.vc[id].disconnect()
+                self.vc[id] = None
 
 
     @commands.Cog.listener()
@@ -242,7 +247,6 @@ class music_cog(commands.Cog):
                 fut.result()
             except:
                 pass
-            print("deu erro aqui meu mano")
             self.queueIndex[id] += 1
             self.is_playing[id] = False
 
@@ -358,6 +362,9 @@ class music_cog(commands.Cog):
                 else:
                     self.sounds[f'{name}'] = added_sound
                     await ctx.send('som adicionado')
+
+                    with open('soundsource.json', 'w') as file:
+                        await json.dump(self.sounds, file)
             else:
                 await ctx.send('isso não é um link de youtube válido, digita -man add pra ver como tem que ser o link')
 
@@ -412,7 +419,7 @@ class music_cog(commands.Cog):
     )
  
     async def debugger(self, ctx):
-        await ctx.send(f'Status da classe: \n {self.is_playing}, \n {self.is_paused}, \n {self.musicQueue}, \n {self.queueIndex}, \n {self.vc}, \n {self.sound_playing}')
+        await ctx.send(f'Status da classe: \n TO: {self.is_playing}, \n PA: {self.is_paused}, \n FI: {self.musicQueue}, \n IF: {self.queueIndex}, \n VC: {self.vc}, \n SP: {self.sound_playing}')
     
     @ commands.command(
         name="ps",
@@ -430,7 +437,7 @@ class music_cog(commands.Cog):
         else:
             if args[0] in self.sounds:
                 search = self.sounds[f'{args[0]}']
-                sound = search['source']
+                sound = search['link']
                 
                 try:
                     userChannel = ctx.author.voice.channel               
@@ -733,3 +740,14 @@ class music_cog(commands.Cog):
             await ctx.send(f'{leave_message[roll]}')
             await self.vc[id].disconnect()
             self.vc[id] = None
+
+        @ commands.command(
+        name="dbsl",
+        aliases=["debugsoundlist"],
+        help="""
+            <>
+            Comando temporário, será removido
+            """,
+    )
+        async def debug_sounds(self, ctx):
+            await ctx.send(self.sounds)
