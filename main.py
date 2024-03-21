@@ -6,6 +6,7 @@ import asyncio
 import os
 from dotenv import load_dotenv
 from discord import Activity, ActivityType
+from music_messages import login_message
 
 load_dotenv()
 
@@ -27,6 +28,6 @@ async def main():
 
 @bot.event
 async def on_ready():
-    print(f'{bot.user}: \n', 'O pai tá on')
+    print(f'{bot.user}: \n', login_message)
 
 asyncio.run(main())
